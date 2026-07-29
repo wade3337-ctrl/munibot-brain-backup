@@ -1,0 +1,155 @@
+{
+  "jobs": [
+    {
+      "id": "1a3bf5190cdc",
+      "name": "Email Monitor",
+      "prompt": "You are Muni Bot. You just woke up on a cron tick. Check your email inbox for new unread messages.\n\nSTEP 1: Run this command to check for unseen mail:\n```\nhimalaya --config /opt/data/.config/himalaya/config.toml envelope list --page-size 20 --output json 2>/dev/null\n```\n\nSTEP 2: Parse the JSON. Filter to messages where 'Seen' is NOT in the flags array. Ignore messages from Google/no-reply (security alerts). \n\nSTEP 3: If there are NO new unseen messages from real people, do nothing \u2014 stay silent. Do NOT send a message.\n\nSTEP 4: If there ARE new unseen messages (especially from Brent at bbeller@gstsinc.com):\n1. Read each new message with: himalaya --config /opt/data/.config/himalaya/config.toml message read <ID>\n2. Mark each as seen: himalaya --config /opt/data/.config/himalaya/config.toml flag add <ID> seen\n3. Send a message to Brent on Telegram summarizing: \"\ud83d\udcec New email from [sender] re: [subject]. I've read it and here's what you need: [brief summary]. I'm on it.\"\n4. Then actually START WORKING on the task if the email contains an actionable request.\n\nIMPORTANT RULES:\n- Only email Brent (bbeller@gstsinc.com) or Jason \u2014 never email anyone else without approval\n- If the email is just informational (no task), acknowledge it briefly: \"\ud83d\udcec Got your email re: [subject]. Noted.\"\n- If you can't tell what the task is, ask Brent for clarification\n- Stay silent if there's nothing new \u2014 don't spam with \"no new mail\" messages",
+      "skills": [],
+      "skill": null,
+      "model": "glm-5.2",
+      "provider": "zai-anthropic",
+      "provider_snapshot": null,
+      "model_snapshot": null,
+      "base_url": null,
+      "script": null,
+      "no_agent": false,
+      "context_from": null,
+      "schedule": {
+        "kind": "once",
+        "run_at": "2026-07-17T00:09:31.516909+00:00",
+        "display": "once in 5m"
+      },
+      "schedule_display": "once in 5m",
+      "repeat": {
+        "times": null,
+        "completed": 1
+      },
+      "enabled": false,
+      "state": "completed",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-07-17T00:01:40.164000+00:00",
+      "next_run_at": null,
+      "last_run_at": "2026-07-17T00:09:39.451679+00:00",
+      "last_status": "ok",
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "origin",
+      "origin": {
+        "platform": "telegram",
+        "chat_id": "-5529154032",
+        "chat_name": "Muni Bot \u2013 Municipal Work",
+        "thread_id": null,
+        "user_id": "8689394897"
+      },
+      "enabled_toolsets": [
+        "web",
+        "terminal",
+        "file",
+        "email",
+        "delegation"
+      ],
+      "workdir": null,
+      "fire_claim": null
+    },
+    {
+      "id": "bf46e2d41835",
+      "name": "End-of-Day Knowledge Sweep",
+      "prompt": "You are Muni Bot. This is your nightly End-of-Day Knowledge Sweep (set by the Skipper, 2026-07-17).\n\nGOAL: Review today's sessions for anything new you learned that future-you would benefit from, and save it to your knowledge vault.\n\nSTEP 1 \u2014 Find today's sessions:\n```\nsession_search with no args (browse mode) to see recent sessions from today\n```\nFocus on sessions from the last 24 hours, especially ones with Brent or Jason.\n\nSTEP 2 \u2014 For each substantive session, review what was learned:\n- New TRIM IT schema details, query patterns, or gotchas (e.g., a column that returns zero rows, a join that doesn't work as expected)\n- New municipal facts (city details, contract info, contact info, budget data)\n- Brent preferences or corrections (how he likes things done, terminology fixes)\n- Workflow discoveries (better ways to do recurring tasks)\n- Commercial-contract details (Irvine Company, etc.)\n\nSTEP 3 \u2014 Check what's already documented:\n- Search the vault at `/opt/data/home/municipal-knowledge/` for existing notes on the topic\n- Only save GENUINELY NEW findings \u2014 don't duplicate existing notes\n\nSTEP 4 \u2014 For each new finding, write an atomic note:\n- Location: `/opt/data/home/municipal-knowledge/concepts/` (rules/how-it-works) or `/opt/data/home/municipal-knowledge/references/` (facts/lookups)\n- Use a fresh kebab-case filename\n- Add YAML frontmatter (title, type, tags, updated: today's date)\n- Use `[[wikilinks]]` to cross-link related notes\n- Track-1 only \u2014 never write arbor-core / Track-2 / confidential material\n\nSTEP 5 \u2014 If new TRIM IT query gotchas/pitfalls were found, patch the skill:\n- File: `/opt/data/skills/productivity/trim-it-muni-queries/SKILL.md`\n- Add to the \"Common Pitfalls\" numbered list\n- This is the skill's operational pitfall tracker \u2014 keep it current\n\nSTEP 6 \u2014 Commit to git:\n```bash\ncd /opt/data/home/municipal-knowledge && git add -A && git commit -m \"End-of-day knowledge sweep $(date +%Y-%m-%d)\"\n```\nIf git identity isn't set: `git config user.email \"MuniBot.gsts@gmail.com\" && git config user.name \"Muni Bot\"` first.\n\nSTEP 7 \u2014 Report what you saved. If nothing new was learned today, say \"[SILENT]\" (exactly that, nothing else) to suppress delivery.\n\nOUTPUT FORMAT (when there ARE new findings):\n- List each note saved with a one-line summary\n- Note any skill patches made\n- Keep it tight \u2014 this is a log, not an essay\n\nIMPORTANT:\n- Vault path is `/opt/data/home/municipal-knowledge/` \u2014 always absolute (~/home/ expands wrong)\n- Git identity per-repo: MuniBot.gsts@gmail.com / Muni Bot\n- Don't edit existing curated notes \u2014 write NEW atomic notes\n- Track-1 only \u2014 no arbor-core / Track-2 / BLACK material",
+      "skills": [],
+      "skill": null,
+      "model": "glm-5.2",
+      "provider": "zai-anthropic",
+      "provider_snapshot": null,
+      "model_snapshot": null,
+      "base_url": null,
+      "script": null,
+      "no_agent": false,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 6 * * *",
+        "display": "0 6 * * *"
+      },
+      "schedule_display": "0 6 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 12
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-07-17T17:21:21.814496+00:00",
+      "next_run_at": "2026-07-29T06:00:00+00:00",
+      "last_run_at": "2026-07-28T06:04:33.498881+00:00",
+      "last_status": "ok",
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "origin",
+      "origin": {
+        "platform": "telegram",
+        "chat_id": "-5529154032",
+        "chat_name": "Muni Bot \u2013 Municipal Work",
+        "thread_id": null,
+        "user_id": "8975923324"
+      },
+      "enabled_toolsets": [
+        "terminal",
+        "file"
+      ],
+      "workdir": null,
+      "fire_claim": null
+    },
+    {
+      "id": "f7f5d8f8586d",
+      "name": "Weekly Vault Housekeeping",
+      "prompt": "You are Muni Bot. This is your Weekly Vault Housekeeping run (set by the Skipper, 2026-07-17).\n\nGOAL: Keep the municipal-knowledge vault clean and functioning efficiently by finding and archiving orphaned files, duplicates, and stale info.\n\nVAULT PATH: `/opt/data/home/municipal-knowledge/`\nARCHIVE PATH: `/opt/data/home/municipal-knowledge/_archive/`\n\n---\n\nSTEP 1 \u2014 Build a complete inventory of the vault.\nList every `.md` file under the vault (excluding `_archive/` and `.git/`). For each file, capture:\n- File path\n- Frontmatter `updated` date (if present)\n- All `[[wikilinks]]` in the file (outgoing links)\n- File size and line count\n\nSTEP 2 \u2014 Find ORPHANED files.\nA file is orphaned if:\n- No other file in the vault links TO it (no incoming wikilinks), AND\n- It's not one of the foundational files: `00-start-here/README.md`, any file in `brent-history/`, or `references/brent-profile.md`\nBe careful \u2014 a file with no outgoing links isn't orphaned; orphaned means nothing links TO it. Also check if it's referenced in the skill's SKILL.md or references/ (the skill path: `/opt/data/skills/productivity/trim-it-muni-queries/SKILL.md`).\n\nSTEP 3 \u2014 Find DUPLICATES and overlapping content.\nLook for:\n- Two notes covering the same topic (e.g., two files about maps, two about PO gaps)\n- Notes that have been superseded by a newer, more complete version\n- Content drift where a concept note and a reference note say nearly the same thing\nFor each duplicate pair, decide which is the canonical version (more complete, more recently updated, better linked) and which should be archived.\n\nSTEP 4 \u2014 Find STALE info.\nA note is stale if:\n- Its `updated` date is more than 60 days old AND it references specific data (budget figures, PO numbers, city contact info) that may have changed\n- It describes a workflow or query pattern that has since been corrected or replaced in the skill\n- It references files or paths that no longer exist\nDo NOT archive stale notes blindly \u2014 only archive if the info is confirmed wrong or superseded. If it's just old but still accurate, note it in the report but leave it in place.\n\nSTEP 5 \u2014 Archive.\nMove archived files to `_archive/` (create subdirectories mirroring the source path). Before moving:\n- Add a header to the archived file: `> Archived $(date +%Y-%m-%d) \u2014 Reason: [orphaned|duplicate|stale]. Originally at: [original path]`\n- Update `00-start-here/README.md` to remove any references to archived files\n- If the skill SKILL.md references an archived file, update the reference to point to the canonical replacement\n\nSTEP 6 \u2014 Commit.\n```bash\ncd /opt/data/home/municipal-knowledge\ngit config user.email \"MuniBot.gsts@gmail.com\" && git config user.name \"Muni Bot\"\ngit add -A && git commit -m \"Weekly vault housekeeping $(date +%Y-%m-%d): archived N orphans/dupes/stale\"\n```\n\nSTEP 7 \u2014 Report.\nOutput a summary:\n- Files scanned: N\n- Orphaned found: N (list each)\n- Duplicates found: N pairs (list each pair + which was archived)\n- Stale found: N (list each + action taken)\n- Archived: N files moved to _archive/\n- README updated: yes/no\n- Skill references updated: yes/no\n\nIf the vault is already clean (nothing to archive), say \"[SILENT]\" (exactly that, nothing else).\n\nIMPORTANT:\n- NEVER delete files \u2014 only move to `_archive/`\n- NEVER archive foundational files (README, brent-profile, brent-history/*)\n- When unsure whether something is orphaned or duplicate, LEAVE IT IN PLACE and note it for review\n- Vault path is always absolute: `/opt/data/home/municipal-knowledge/`\n- Track-1 only \u2014 no arbor-core / Track-2 material in the vault",
+      "skills": [],
+      "skill": null,
+      "model": null,
+      "provider": null,
+      "provider_snapshot": "custom",
+      "model_snapshot": "glm-5.2",
+      "base_url": null,
+      "script": null,
+      "no_agent": false,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "30 6 * * 1",
+        "display": "30 6 * * 1"
+      },
+      "schedule_display": "30 6 * * 1",
+      "repeat": {
+        "times": null,
+        "completed": 3
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "paused_at": null,
+      "paused_reason": null,
+      "created_at": "2026-07-17T17:24:55.319345+00:00",
+      "next_run_at": "2026-08-03T06:30:00+00:00",
+      "last_run_at": "2026-07-27T06:39:00.732609+00:00",
+      "last_status": "ok",
+      "last_error": null,
+      "last_delivery_error": null,
+      "deliver": "origin",
+      "origin": {
+        "platform": "telegram",
+        "chat_id": "-5529154032",
+        "chat_name": "Muni Bot \u2013 Municipal Work",
+        "thread_id": null,
+        "user_id": "8975923324"
+      },
+      "enabled_toolsets": [
+        "terminal",
+        "file"
+      ],
+      "workdir": null,
+      "fire_claim": null
+    }
+  ],
+  "updated_at": "2026-07-28T06:04:33.499230+00:00"
+}
