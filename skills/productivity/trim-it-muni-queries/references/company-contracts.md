@@ -120,5 +120,5 @@ skill for the MML pattern.
 
 ## Related
 - [[commercial-contract-proposals]] — Irvine Company and commercial-contract scope
-- [[muni-query-patterns]] — verified SQL pattern catalog
+- [[muni-query-patterns]] — verified SQL pattern catalog (includes GeoMarket queries)
 - `Projects.ContractID` — links projects to their parent CompanyContract (often NULL)

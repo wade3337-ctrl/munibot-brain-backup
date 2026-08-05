@@ -251,13 +251,13 @@
     "created_at": "2026-07-17T17:18:43.348051+00:00",
     "created_by": null,
     "last_patched_at": "2026-07-21T21:49:01.411112+00:00",
-    "last_used_at": "2026-07-21T21:47:22.653300+00:00",
-    "last_viewed_at": "2026-07-21T21:47:22.582998+00:00",
+    "last_used_at": "2026-08-04T20:22:07.568064+00:00",
+    "last_viewed_at": "2026-08-04T20:22:07.416142+00:00",
     "patch_count": 11,
     "pinned": false,
     "state": "active",
-    "use_count": 9,
-    "view_count": 9
+    "use_count": 10,
+    "view_count": 10
   },
   "evaluating-llms-harness": {
     "archived_at": null,
@@ -563,13 +563,13 @@
     "created_at": "2026-07-17T22:30:24.624985+00:00",
     "created_by": "agent",
     "last_patched_at": "2026-07-25T19:12:19.025941+00:00",
-    "last_used_at": "2026-07-25T19:12:10.825867+00:00",
-    "last_viewed_at": "2026-07-25T19:12:10.787077+00:00",
+    "last_used_at": "2026-08-04T20:22:07.658697+00:00",
+    "last_viewed_at": "2026-08-04T20:22:07.523153+00:00",
     "patch_count": 92,
     "pinned": false,
     "state": "active",
-    "use_count": 48,
-    "view_count": 48
+    "use_count": 49,
+    "view_count": 49
   },
   "nano-pdf": {
     "archived_at": null,
@@ -926,14 +926,14 @@
     "archived_at": null,
     "created_at": "2026-07-15T01:37:25.136045+00:00",
     "created_by": "agent",
-    "last_patched_at": "2026-07-25T03:35:09.765278+00:00",
-    "last_used_at": "2026-07-25T19:12:05.023371+00:00",
-    "last_viewed_at": "2026-07-25T19:12:04.955607+00:00",
-    "patch_count": 112,
+    "last_patched_at": "2026-08-04T20:23:02.123733+00:00",
+    "last_used_at": "2026-08-04T20:22:55.700156+00:00",
+    "last_viewed_at": "2026-08-04T20:22:55.651643+00:00",
+    "patch_count": 114,
     "pinned": false,
     "state": "active",
-    "use_count": 107,
-    "view_count": 107
+    "use_count": 110,
+    "view_count": 110
   },
   "weights-and-biases": {
     "archived_at": null,

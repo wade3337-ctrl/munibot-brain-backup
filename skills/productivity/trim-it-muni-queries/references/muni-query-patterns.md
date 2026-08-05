@@ -70,6 +70,45 @@ Known scopes: `CompanyContracts` (IDs 291–296, 316), `Contracts` (IDs 135–13
 `SeqOrder` indicates display grouping: lower numbers = more prominent in the UI;
 99 = soft-deleted (stays in DB, drops from lists).
 
+## GeoMarket queries
+
+### Projects by GeoMarket (region + segment)
+The `Projects.GeoMarketID` column links to `dbo.GeoMarkets`, which segments
+projects by region and type. The Commercial/Industrial segment spans 7 IDs:
+
+| GeoMarketID | Desc1 | Region |
+|---|---|---|
+| 5 | Orange - Commercial / Industrial | Orange County |
+| 18 | Los Angeles - Commercial / Industrial | Los Angeles |
+| 31 | San Diego - Commercial / Industrial | San Diego |
+| 44 | Ventura - Commercial / Industrial | Los Angeles |
+| 57 | San Bernardino - Commercial / Industrial | Inland Empire |
+| 70 | Riverside - Commercial / Industrial | Inland Empire |
+| 108 | Undefined - Commercial / Industrial | (unassigned) |
+
+**Find all GeoMarket values:**
+```sql
+SELECT GeoMarketID, Desc1, Desc2, MarketID, GeoSegmentID
+FROM gsts.dbo.GeoMarkets ORDER BY Desc1;
+```
+
+**Commercial/Industrial projects ranked by spend:**
+```sql
+SELECT p.ProjectID, p.Desc1 AS ProjectName, c.PublishedName AS CompanyName,
+       gm.Desc1 AS GeoMarket, p.HTDValue, p.Last12NetTotal
+FROM gsts.dbo.Projects p
+LEFT JOIN gsts.dbo.Companies c ON c.CompanyID = p.CompanyID
+LEFT JOIN gsts.dbo.GeoMarkets gm ON gm.GeoMarketID = p.GeoMarketID
+WHERE p.GeoMarketID IN (5, 18, 31, 44, 57, 70, 108)
+  AND p.HTDValue > 0
+ORDER BY p.HTDValue DESC;
+```
+- `HTDValue` = historical-to-date total spend (all time).
+- `Last12NetTotal` = last 12 months net revenue (for recent-activity ranking).
+- For "most recent spend" ranking, filter on `Last12NetTotal > 0` and sort by that column.
+- GeoMarket is set per-project in TRIM IT's Project tab → Details section.
+- `GeoMarkets` also has `MarketID` and `GeoSegmentID` for higher-level rollups.
+
 ## General rules
 - Always read-only. Never attempt INSERT/UPDATE/CREATE/DROP.
 - Parse the pipe-delimited output; skip the `---|---` separator line after the header.

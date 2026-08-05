@@ -1,6 +1,6 @@
 TRIM IT access: read-only SQL via `/opt/data/home/trimit-query.sh` (pipe SQL on stdin, SSH to play replica ~24h behind, pipe-delimited output). Abs path only — `$HOME=/opt/data` so `~/home/` double-paths. Municipal segment = `ProjectGroupDefID=11`. Column traps: Companies.`PublishedName` (not CompanyName), InvoiceMasters.`Total` (not Amount). Vault: `/opt/data/home/municipal-knowledge/`. Skill: trim-it-muni-queries.
 §
-GPS tree inventory: `InventoryDetail` (274 cols). PruningFrequency=year int. District=DistrictID. `Inventories`=empty header, always use InventoryDetail. City of Industry=ProjectID 1095104, 9,685 trees.
+GPS tree inventory: InventoryDetail (274 cols). PruningFreq=year. District=DistrictID. Rate card: LocationServiceTypes. Maps: LocationID.
 §
 TRIM IT attachments: `Maps` table (keyed by `LocationID` not `ProjectID`). Sub-tabs: IsBaseMap=1, IsRemovalMap=1, RecordType='Image'/'Attachment'. Rate card in `LocationServiceTypes` (149=prune,47=removal,21=planting).
 §
@@ -12,8 +12,10 @@ Brent communicates casually and conversationally (e.g. 'my guys need work', 'kic
 §
 Himalaya: always use --config /opt/data/.config/himalaya/config.toml. For complex email bodies, write to file then pipe (heredoc with && triggers foreground rejection).
 §
-Municipal file archive (raw bid data): Brent's real municipal file base (`\\gsts-server200\...\Jason_Compiled`, ~42GB) lives at ABSOLUTE path `/opt/data/municipal-archive/`, organized by county (Los Angeles, Orange, Riverside, San Bernardino, San Diego). This is my raw source material for municipal work/bids — read it directly. It's a large on-disk warehouse, deliberately NOT in git/the vault (too big to sync) — read but NEVER commit it. Use the absolute path; `~` double-paths since $HOME=/opt/data. (The old empty `~/home/municipal-history/` placeholder is retired.)
+Municipal archive: /opt/data/municipal-archive/ by county. ~42GB, NOT in git. Read directly, never commit.
 §
 BID PRICING: Renewal caps=7%. TPH=$130/hr universal (2026), yearly param. Old $75 non-PW rule RETIRED. PB FLOOR: use grid-only filter (WOs with 100+ completed lines) — blended qty=1 query LIES (overstates mid-bands 49-143%). Always pull AVG(Price): if bid > our avg billed, margin is real. Crew review: Kimi K3 + Gemini 3.1 Pro via /opt/data/home/crew/{kimi,gemini}-ask.py. Skill: municipal-bid-pricing.
 §
 VISION CAVEAT: Small text in screenshots (taskbar clocks, dates, system-tray captions) is unreliable — vision can hallucinate values. Prefilled "[user sent an image~]" descriptions are ALSO unreliable on small text. Always verify specifics with vision_analyze before stating as facts. Skipper caught a misread date 7/28/2023 when actual was 7/21/26. Flag uncertainty on tiny-text details; large-format text reads fine.
+§
+Google Sheets proposal (pending Jason, 2026-08-04): Brent + Muni Bot proposed gspread for live spreadsheet collaboration. Fixes blind-openpyxl. Brent will email Jason.
