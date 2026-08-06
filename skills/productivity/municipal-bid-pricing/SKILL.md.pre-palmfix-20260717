@@ -1,0 +1,312 @@
+---
+name: municipal-bid-pricing
+description: >
+  Price municipal tree-care bids (RFP cost proposals) using the bid engine and
+  competitor extractor. Covers the full workflow: extract competitor bid data from
+  warehouse PDFs, escalate historical prices, pull cost floors from TRIM IT
+  (Price Buddy / WorkOrderLines), run the pricing engine to set every line item
+  under the competitor's estimated bid while staying above the $130 TPH cost floor,
+  and deliver the filled cost-proposal spreadsheet. Tools: bid_engine.py,
+  competitor_extractor.py.
+version: 1.0.0
+author: Muni Bot
+license: MIT
+metadata:
+  hermes:
+    tags: [municipal, bid, pricing, rfp, competitor, cost-proposal, tree-care]
+    related_skills: [trim-it-muni-queries, email-large-deliverables]
+---
+
+# Municipal Bid Pricing
+
+Price a municipal tree-care RFP cost proposal with data-driven competitive pricing.
+
+## When to use
+
+- Brent or the Skipper says "price this bid" / "fill out the cost proposal" / "run the bid engine"
+- An RFP packet is in the warehouse with a cost-proposal form and tree inventory
+- You need to estimate a competitor's likely bid and come in under it
+- Any Long Beach / City of X tree-trimming RFP that needs line-item pricing
+
+## The tools (already on disk — don't hunt for them)
+
+| Tool | Path | What it does |
+|------|------|-------------|
+| **Bid Engine** | `/opt/data/home/bid_engine.py` | Gathers all pricing signals from TRIM IT: current rates from `LocationServiceTypes`, nearby city rates, Price Buddy cost floors from `WorkOrderLines`, and a list of warehouse competitor files |
+| **Competitor Extractor** | `/opt/data/home/competitor_extractor.py` | Parses Long Beach-style Bid Results PDFs: extracts line-item prices for each bidder (description, unit, bidder1 price, bidder2 price) |
+| **Venv Python** | `/opt/data/.venv/bin/python` | Use this Python (not `python3`) — it has `pymupdf`, `openpyxl`, and other data packages installed |
+
+## Full workflow
+
+### Step 1 — Run the bid engine
+
+```bash
+/opt/data/.venv/bin/python /opt/data/home/bid_engine.py \
+  --city "Long Beach" \
+  --rfp-dir "/opt/data/municipal-archive/Los Angeles County/Long Beach/PUBLIC WORKS/2027-2032 CONTRACT/" \
+  --incumbent "WCA" \
+  --tph 130
+```
+
+This produces a signals JSON at `/opt/data/home/muni-scratch/bid_output/{City}_signals.json` containing:
+- Current GSTS rates averaged across municipal contracts (48+ unique line items)
+- Nearby city rates for competitive context (180+ items)
+- Price Buddy cost floor data by DBH band (from 128k+ actual WorkOrderLines)
+- Competitor file paths in the warehouse
+
+### Step 2 — Run the competitor extractor
+
+```bash
+/opt/data/.venv/bin/python /opt/data/home/competitor_extractor.py "Long Beach"
+```
+
+Parses `Bid Results.pdf` files from the warehouse. Output saved to
+`/opt/data/home/muni-scratch/bid_output/{City}_competitor_bids.json`.
+
+The extractor assumes a 7-line-per-item PDF format:
+```
+L0: DESCRIPTION (e.g. FULL PRUNE 0-6" DSH)
+L1: 1 (qty)
+L2: UNIT (EACH, FOOT, MAN HOUR, DAY, CREW HOUR)
+L3: $XX.00 (bidder 1 unit price)
+L4: $XX.00 (bidder 1 total)
+L5: $YY.00 (bidder 2 unit price)
+L6: $YY.00 (bidder 2 total)
+```
+
+If the PDF format differs, extract manually via pymupdf and parse the text.
+
+### Step 3 — Extract the tree inventory and cost-proposal form
+
+Use pymupdf to extract text from the RFP packet PDFs:
+
+```python
+import pymupdf
+doc = pymupdf.open('/path/to/Tree Inventory_Pricing Worksheet.pdf')
+for page in doc:
+    print(page.get_text())
+```
+
+Key PDFs to extract:
+- **Tree Inventory / Pricing Worksheet** — species × DBH band matrix, grand totals per band
+- **Cost Proposal form (Appendix 1 or Attachment AA)** — the actual form with line items and units
+- **Bid Results** from the prior contract cycle — competitor actual prices
+
+### Step 4 — Escalate competitor prices
+
+If you have the incumbent's winning bid from N years ago, escalate to estimate their
+current bid:
+
+```python
+years = 5  # 2021 → 2026
+rate = 0.035  # 3.5% per year
+factor = (1 + rate) ** years  # = 1.1877 (18.8% increase)
+wca_2026_est = wca_2021_price * factor
+```
+
+### Step 5 — Price every line item
+
+**Use the pricing engine script** (not `execute_code` — too many items for the 50-call limit):
+
+```bash
+/opt/data/.venv/bin/python /opt/data/skills/productivity/municipal-bid-pricing/scripts/price_bid.py \
+  --competitor-bids /opt/data/home/muni-scratch/bid_output/{City}_competitor_bids.json \
+  --signals /opt/data/home/muni-scratch/bid_output/{City}_signals.json \
+  --output /opt/data/home/muni-scratch/bid_output/{city}_priced.json \
+  --escalation-rate 0.035 --years 5
+```
+
+This applies the discount + floor logic below and writes `{city}_priced.json`.
+
+#### Discount tiers (from guardrails JSON)
+
+| Category | Discount vs WCA est | Rationale |
+|----------|-------------------|-----------|
+| Standard items (trimming, palms, planting, watering) | **8% under** | Competitive but profitable |
+| Removals | **10% under** | Higher margin, more aggressive |
+| Stump grinding | **8% under** | Moderate margin |
+| Raise/clearance prune | **5% under** | Thin margin, low volume |
+
+#### Cost floor enforcement (CRITICAL — never price below these)
+
+If `target = WCA_est × (1 - discount)` falls below the applicable floor, **price AT
+the floor and flag the item**. Do NOT price at "WCA − $1" — that guarantees a loss
+when the competitor is already below your cost.
+
+| Item type | Floor | Formula |
+|-----------|-------|---------|
+| All per-hour labor (ground, operator, trimmer, arborist, PCA, QA) | **$130/hr** | TPH target |
+| Day rate crew (boom truck + 3 persons) | **$3,120/day** | 3p × 8hr × $130 |
+| Emergency day (7am-7pm) | **$390/hr** | 3p × $130 |
+| Emergency night (7pm-7am, weekends, holidays) | **$488/hr** | 3p × $130 × 1.25 |
+| Full prune per-tree (by DBH band) | **Price Buddy blended floor** | See table below |
+| Raise/clearance per-tree | **35% of full prune floor** | crown_raise_ratio guardrail |
+| Removal per-tree | **2.5× full prune floor** | Removals take ~2.5× trim time |
+| Stump grinding per-tree | **35% of removal floor** | stump_removal_ratio guardrail |
+
+Example cost floors (Long Beach, from 128k+ WorkOrderLines):
+| DBH Band | Hours/Tree | Prune Floor | Raise Floor (35%) | Removal Floor (2.5×) | Stump Floor (35% of removal) |
+|----------|-----------|-------------|-------------------|---------------------|-----------------------------|
+| 0-6" | 0.471 | $61 | $21 | $153 | $54 |
+| 7-12" | 0.649 | $84 | $30 | $211 | $74 |
+| 13-18" | 0.679 | $88 | $31 | $221 | $77 |
+| 19-24" | 0.922 | $120 | $42 | $300 | $105 |
+| 24-30" | 1.163 | $151 | $53 | $378 | $132 |
+| 31+" | 1.183 | $154 | $54 | $384 | $134 |
+
+**Floor-enforced items are expected.** On Long Beach PW25-648, 7 of 46 items were
+floor-enforced — WCA priced them below our sustainable cost. These items will show
+negative savings vs WCA. That's correct: we WILL NOT match a competitor's below-cost
+price. Flag them clearly in the output and methodology.
+
+### Step 6 — Build the spreadsheet
+
+**Use the spreadsheet generator template** (parameterized, not hardcoded):
+
+```bash
+/opt/data/.venv/bin/python /opt/data/skills/productivity/municipal-bid-pricing/templates/generate_bid_spreadsheet.py \
+  --priced /opt/data/home/muni-scratch/bid_output/{city}_priced.json \
+  --signals /opt/data/home/muni-scratch/bid_output/{City}_signals.json \
+  --output /opt/data/home/muni-scratch/bid_output/{City}_Cost_Proposal.xlsx \
+  --city "Long Beach" --rfp "PW25-648" --renewal-caps 7,7,7
+```
+
+Produces a 4-tab workbook:
+
+1. **Cost Proposal** — the form, ready to transcribe to the RFP's Appendix 1
+2. **Pricing Analysis** — every item side-by-side: WCA 2021, WCA 2026 est, our price, savings $, savings %, rationale
+3. **Cost Floor & Weighting** — Price Buddy data + weighted revenue by DBH band (tree count × unit price)
+4. **Methodology** — how the numbers were derived, data sources, items needing review
+
+**Gotcha:** `openpyxl` is not in the system Python. Always run spreadsheet generation
+scripts with `/opt/data/.venv/bin/python`, not `python3`.
+
+**Verify zero blanks after generating:** Run the verification script:
+```bash
+/opt/data/.venv/bin/python /opt/data/skills/productivity/municipal-bid-pricing/scripts/verify_no_blanks.py \
+  /opt/data/home/muni-scratch/bid_output/{City}_Cost_Proposal.xlsx
+```
+This checks every EA/HR/DAY/FT cell has a price, and confirms Crown Raise (6 bands)
+and Stump Grinding (6 bands) are fully populated.
+
+### Step 7 — Deliver
+
+Email the spreadsheet to Brent via himalaya (see `email-large-deliverables` skill for
+MML format). Single `.xlsx` file is well under 25 MB — no batching needed.
+
+Include in the email body:
+- What you did (sources, method)
+- Key result (N/N items under WCA, average savings %)
+- Items needing human review (items at/below cost floor, blank fields)
+- The 4-tab structure
+
+### Step 8 — Flag items needing crew review
+
+Always flag line items where:
+- **WCA is already below our cost floor** (can't match profitably without efficiencies)
+- **Raise/Clearance prune items** (often priced very low by competitors)
+- **Day rates** (verify covers actual crew costs)
+- **Renewal cap percentages** (usually blank in the form — need a decision)
+
+## TRIM IT queries used by the bid engine
+
+The bid engine runs these behind the scenes:
+
+**Price Buddy (cost floor):**
+```sql
+-- Pulls avg price, avg EstTPH, and computes blended/grid floor per DBH band
+-- from WorkOrderLines (ServiceClassID=1, completed since 2023)
+-- Blended floor = (avg_price / avg_tph) * $130
+-- Grid floor = blended * 0.75
+```
+
+**Current rates:**
+```sql
+-- LocationServiceTypes joined to Projects → Locations
+-- Filtered to StatusDefID=500 (active), BasePrice > 0
+-- Scoped by city name
+```
+
+See `references/bid-engine-internals.md` for the full SQL and data flow.
+
+## Warehouse structure
+
+RFP packets live in the municipal archive:
+```
+/opt/data/municipal-archive/{County}/{City}/PUBLIC WORKS/{Contract Cycle}/
+```
+
+Common files in an RFP folder:
+- `Appendix 1 - Cost Proposal.pdf` or `Attachment AA - Cost Proposal.pdf` — the form
+- `Tree Inventory_Pricing Worksheet.pdf` — species × DBH matrix
+- `Bid Specifications.pdf` — full RFP scope
+- `Exhibit A - Scope of Services.pdf` — work scope
+- `Pricing Worksheet.xlsx` — sometimes provided as Excel
+
+Prior cycle folder (for competitor intel):
+- `Bid Results.pdf` — actual bid prices from all bidders
+- `WCA Fee Schedule.pdf` / `WCA Proposal.pdf` — incumbent's full proposal
+- `Notice of Intent to Award.pdf` — who won
+
+## Pitfalls
+
+0. **Renewal caps and labor rates — Skipper's standing decisions (Long Beach PW25-648,
+   2026-07-17).** These are user preferences, not suggestions:
+   - **Renewal cap: 7%** for each renewal period (not 3% or 5% — Skipper wants
+     strong inflation protection over the 5-year horizon).
+   - **Labor rates: NEVER chase the competitor below $130/hr.** Even if the
+     incumbent's escalated hourly is $112, we hold at $130. We do not discount
+     labor to win volume — $130 is the fully-loaded cost floor.
+
+1. **Using `python3` instead of `/opt/data/.venv/bin/python`.** The system Python
+   doesn't have `pymupdf`, `openpyxl`, or `json` handling for the scripts. Always
+   use the venv Python for bid-engine work.
+
+2. **Bid Results PDF format varies by city.** The competitor extractor assumes
+   Long Beach's 7-line-per-item format. Other cities may have different layouts.
+   If extraction returns 0 items, extract the PDF text manually and inspect the format.
+
+3. **Bidder column order.** In Long Beach 2021, WCA (winner) was column 1, GSTS
+   was column 2. This may be reversed in other cities or cycles. Check the PDF
+   header/footer for bidder names before assuming which column is which.
+
+4. **Escalation rate.** The Skipper specified 3.5%/year for Long Beach. This may
+   differ for other cities or time periods. Always confirm the rate and years.
+
+5. **DBH band naming mismatch.** The cost-proposal form may say "24-30" while
+   the Price Buddy data has band "24-30" but the bid results say "24-30\" DSH".
+   Normalize band names when matching across sources.
+
+6. **Some items have no DBH band.** Palm trimming, hourly rates, day rates,
+   planting, watering, emergency, arborist — these are flat-rate items without
+   a size dimension. Price them with the standard discount (8% under WCA).
+
+7. **The `execute_code` 50-tool-call limit.** Don't use `execute_code` for the
+   pricing loop if there are many line items. Write a script to `/tmp/` and run
+   it with the venv Python instead.
+
+8. **Spreadsheet search strings must match full descriptions.** The competitor
+   extractor preserves descriptions like `RAISE/CLEARANCE PRUNE 0-6" DSH` and
+   `STUMP GRINDING 0-6" DSH`. If your spreadsheet generator searches for
+   `'RAISE/CLEARANCE 0-6'` or `'STUMP 0-6'` (missing the middle word), the
+   `find_item()` lookup returns None and the cell stays **blank**. Always search
+   for the full substring: `'RAISE/CLEARANCE PRUNE 0-6'`, `'STUMP GRINDING 0-6'`.
+   After generating the spreadsheet, verify zero blanks:
+   ```python
+   from openpyxl import load_workbook
+   wb = load_workbook(output_path)
+   ws = wb['Cost Proposal']
+   blanks = [r[0].value for r in ws.iter_rows(values_only=True)
+             if r[2] is None and r[1] in ('EA','HR','DAY','FT')]
+   assert not blanks, f"BLANK PRICES: {blanks}"
+   ```
+
+9. **Crown Raise and Stump Grinding must be populated.** These are commonly left
+   blank by accident (see pitfall 8). They are required line items — verify all
+   6 DBH bands each have a price before delivering.
+
+## See also
+
+- `trim-it-muni-queries` → the underlying TRIM IT query skill (Price Buddy, rates, Maps)
+- `email-large-deliverables` → MML email format for delivering the spreadsheet
+- `himalaya` → email CLI reference
